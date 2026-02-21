@@ -7,7 +7,46 @@
 > - **TailwindCSS v3**: UI 빠르게 스타일링
 
 ---
- 
+
+## WSL 실행 가이드 (권장)
+
+WSL2에서 Windows 브라우저까지 함께 테스트하려면 **프론트/시그널 서버를 0.0.0.0에 바인딩**해야 합니다.
+
+1. 설치
+
+```bash
+npm install
+```
+
+2. 시그널 서버 실행
+
+```bash
+npm run signal
+```
+
+3. 프론트 실행 (WSL 외부 접속 허용)
+
+```bash
+npm run dev:wsl
+```
+
+또는 한 번에 실행:
+
+```bash
+npm run start:wsl
+```
+
+### 환경 변수
+
+- `VITE_SIGNAL_URL`: 프론트에서 사용할 시그널 서버 주소 (예: `ws://localhost:3001`)
+- `VITE_SIGNAL_PORT`: `VITE_SIGNAL_URL` 미설정 시 사용할 기본 포트 (기본값: `3001`)
+- `SIGNAL_HOST`: 시그널 서버 바인딩 호스트 (기본값: `0.0.0.0`)
+- `SIGNAL_PORT`: 시그널 서버 포트 (기본값: `3001`)
+
+기본 설정으로도 WSL에서 바로 동작하도록 구성되어 있으며, 브라우저 접속 호스트 기준으로 자동으로 `ws://<host>:3001`를 사용합니다.
+
+---
+
 ## 1) 폴더 구조 (예시)
 
 ```

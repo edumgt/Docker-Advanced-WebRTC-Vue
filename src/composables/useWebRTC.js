@@ -1,11 +1,21 @@
 import { reactive } from "vue"
 
+function getSignalUrl() {
+  const envUrl = import.meta.env.VITE_SIGNAL_URL
+  if (envUrl) return envUrl
+
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws"
+  const host = window.location.hostname || "localhost"
+  const port = import.meta.env.VITE_SIGNAL_PORT || "3001"
+  return `${protocol}://${host}:${port}`
+}
+
 export default function useWebRTC(roomId, joined) {
   let ws
-  let peers = new Map()
-  let chatChannels = new Map()
-  let fileChannels = new Map()
-  let drawChannels = new Map()
+  const peers = new Map()
+  const chatChannels = new Map()
+  const fileChannels = new Map()
+  const drawChannels = new Map()
 
   const clientId = Math.random().toString(36).substring(2, 10)
 
@@ -42,7 +52,7 @@ export default function useWebRTC(roomId, joined) {
   })
 
   function joinRoom() {
-    ws = new WebSocket("ws://localhost:3001")
+    ws = new WebSocket(getSignalUrl())
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: "join-room", roomId: roomId.value, sender: clientId }))
       joined.value = true
