@@ -125,7 +125,7 @@ function applyRemoteDraw(data) {
 
 // --- WebSocket / Signaling ---
 function joinRoom() {
-  ws = new WebSocket("ws://my-app-backend.eba-jnvhrxk5.ap-northeast-2.elasticbeanstalk.com")
+  ws = new WebSocket("ws://localhost:3001")
 
   ws.onopen = () => {
     ws.send(JSON.stringify({ type: "join-room", roomId: roomId.value, sender: clientId }))

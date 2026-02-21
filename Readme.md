@@ -32,10 +32,37 @@ my-webrtc-app/
 
 ### 2-1) Vite + Vue 프로젝트 생성
 
+---
+```
+cd /home/Docker-Advanced-WebRTC-Vue
+rm -rf node_modules package-lock.json
+npm cache clean --force
+npm install
+```
+---
+```
+sudo tee /etc/wsl.conf >/dev/null <<'EOF'
+[user]
+default=root
+EOF
+```
+
 ```bash
 npm create vite@latest my-webrtc-app -- --template vue
 cd my-webrtc-app
 npm install
+```
+
+---
+```
+root@DESKTOP-CLQV18N:/home/Docker-Advanced-WebRTC-Vue# which node
+which npm
+node -v
+npm -v
+/root/.nvm/versions/node/v24.13.1/bin/node
+/root/.nvm/versions/node/v24.13.1/bin/npm
+v24.13.1
+11.8.0
 ```
 
 ### 2-2) TailwindCSS v3 고정 설치
