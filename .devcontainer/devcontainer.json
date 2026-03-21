@@ -1,0 +1,17 @@
+{
+  "name": "WebRTC Vue Codespace",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "forwardPorts": [5173, 3001],
+  "portsAttributes": {
+    "5173": {
+      "label": "Vite Frontend",
+      "onAutoForward": "openBrowser"
+    },
+    "3001": {
+      "label": "Signaling Server",
+      "onAutoForward": "silent"
+    }
+  },
+  "postCreateCommand": "npm install && bash .devcontainer/setup.sh",
+  "postStartCommand": "npm run start:wsl"
+}
