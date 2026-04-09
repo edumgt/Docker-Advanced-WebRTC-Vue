@@ -1,5 +1,5 @@
 ## Vite + Vue3 + TailwindCSS v3 기반 WebRTC 로컬 테스트 모듈 (영상통화 + 채팅 + 화면공유 + 파일전송)
-
+ 
 > 목표: **localhost**에서 “두 브라우저(또는 시크릿 탭)”로 쉽게 P2P WebRTC 기능을 테스트할 수 있는 최소/실전형 예제  
 > 구성:  
 > - **Vue 클라이언트**: `App.vue` (WebRTC + UI)  
