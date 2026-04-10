@@ -49,6 +49,7 @@
             <p class="system-card__eyebrow">CloudWatch Analysis</p>
             <h3>Admin Insight</h3>
           </div>
+          <button class="ghost-button" @click="refreshCloudWatchData">Refresh</button>
         </div>
         <ul class="system-list">
           <li>{{ analysis.summary }}</li>
@@ -57,7 +58,7 @@
           <li>{{ analysis.sdp }}</li>
         </ul>
         <p class="system-panel__hint">
-          이 화면은 프런트에서 수집한 WebRTC 이벤트를 기반으로 CloudWatch 점검 포인트를 요약합니다.
+          {{ cloudWatchStatus }}
         </p>
       </article>
     </div>
@@ -67,7 +68,7 @@
         <div class="system-panel__header">
           <div>
             <p class="system-card__eyebrow">Resource Distribution</p>
-            <h3>Donut Sample</h3>
+            <h3>Service Error Share</h3>
           </div>
         </div>
         <apexchart
@@ -82,7 +83,7 @@
         <div class="system-panel__header">
           <div>
             <p class="system-card__eyebrow">Time Series</p>
-            <h3>Signal Activity Trend</h3>
+            <h3>CloudWatch Volume Trend</h3>
           </div>
         </div>
         <apexchart
@@ -97,7 +98,7 @@
         <div class="system-panel__header">
           <div>
             <p class="system-card__eyebrow">Radar</p>
-            <h3>CloudWatch Analysis Sample</h3>
+            <h3>Operational Readiness</h3>
           </div>
         </div>
         <apexchart
@@ -117,7 +118,7 @@
         </div>
       </div>
       <div class="log-table">
-        <div v-for="entry in webrtc.eventLogs" :key="entry.id" class="log-row">
+        <div v-for="entry in recentLogRows" :key="entry.id" class="log-row">
           <span class="log-row__scope">{{ entry.scope }}</span>
           <div class="log-row__body">
             <strong>{{ entry.message }}</strong>
@@ -131,7 +132,7 @@
 </template>
 
 <script setup>
-import { computed } from "vue"
+import { computed, onMounted, ref } from "vue"
 import VueApexCharts from "vue3-apexcharts"
 
 const props = defineProps({
@@ -139,6 +140,9 @@ const props = defineProps({
 })
 
 const apexchart = VueApexCharts
+const cloudWatchPayload = ref(null)
+const cloudWatchRecent = ref([])
+const cloudWatchStatus = ref("CloudWatch API not queried yet. Showing frontend-derived sample data.")
 
 const transportLabel = computed(() => {
   if (props.webrtc.signalUrl?.startsWith("wss://")) return "WSS / 443-style secure WebSocket"
@@ -147,11 +151,11 @@ const transportLabel = computed(() => {
 })
 
 const analysis = computed(() => {
-  const logs = props.webrtc.eventLogs || []
+  const logs = recentLogRows.value || []
   const hasSignalOpen = logs.some(entry => entry.message.includes("WebSocket connected"))
   const hasOffer = logs.some(entry => entry.message.includes("offer"))
   const hasAnswer = logs.some(entry => entry.message.includes("answer"))
-  const hasIce = logs.some(entry => entry.scope === "ice")
+  const hasIce = logs.some(entry => entry.scope === "ice" || entry.message.includes("ICE"))
 
   return {
     summary: hasSignalOpen
@@ -169,15 +173,43 @@ const analysis = computed(() => {
   }
 })
 
-const resourceSeries = computed(() => {
-  const remoteStreams = props.webrtc.remoteStreams.length
-  const peers = props.webrtc.peerCount || 0
-  const logs = Math.min(props.webrtc.eventLogs.length, 100)
+const fallbackTimeseriesSeries = computed(() => {
+  const recentLogs = [...(props.webrtc.eventLogs || [])].slice(0, 12).reverse()
+  const signalPoints = recentLogs.map((entry, index) => [
+    new Date(Date.now() - (recentLogs.length - index) * 5 * 60 * 1000).toISOString(),
+    entry.scope === "signal" ? 1 : 0,
+  ])
+  const icePoints = recentLogs.map((entry, index) => [
+    new Date(Date.now() - (recentLogs.length - index) * 5 * 60 * 1000).toISOString(),
+    entry.scope === "ice" ? 1 : 0,
+  ])
+  const sdpPoints = recentLogs.map((entry, index) => [
+    new Date(Date.now() - (recentLogs.length - index) * 5 * 60 * 1000).toISOString(),
+    entry.scope === "sdp" ? 1 : 0,
+  ])
 
   return [
-    Math.max(22, remoteStreams * 18 + 18),
-    Math.max(18, peers * 14 + 16),
-    Math.max(14, Math.round(logs * 0.5) + 12),
+    { name: "frontend_signal", data: signalPoints },
+    { name: "signaling_ice", data: icePoints },
+    { name: "signaling_sdp", data: sdpPoints },
+  ]
+})
+
+const timeseriesSource = computed(() => cloudWatchPayload.value?.series?.length ? cloudWatchPayload.value.series : fallbackTimeseriesSeries.value)
+
+const resourceSeries = computed(() => {
+  const frontendErrors = timeseriesSource.value
+    .filter(item => item.name.includes("frontend"))
+    .reduce((sum, item) => sum + item.data.reduce((acc, [, value]) => acc + value, 0), 0)
+  const signalingErrors = timeseriesSource.value
+    .filter(item => item.name.includes("signaling") || item.name.includes("ice") || item.name.includes("sdp"))
+    .reduce((sum, item) => sum + item.data.reduce((acc, [, value]) => acc + value, 0), 0)
+  const localWarnings = Math.max(props.webrtc.eventLogs.length, 1)
+
+  return [
+    Math.max(frontendErrors, 1),
+    Math.max(signalingErrors, 1),
+    Math.max(Math.min(localWarnings, 24), 1),
   ]
 })
 
@@ -186,8 +218,8 @@ const resourceChartOptions = computed(() => ({
     toolbar: { show: false },
     background: "transparent",
   },
-  labels: ["Media Streams", "Peer Sessions", "Event Logs"],
-  colors: ["#0f766e", "#f97316", "#2563eb"],
+  labels: ["frontend_errors", "signaling_errors", "frontend_event_buffer"],
+  colors: ["#0058a3", "#ffda1a", "#0f766e"],
   legend: {
     position: "bottom",
     fontFamily: "Segoe UI, Noto Sans KR, sans-serif",
@@ -196,27 +228,13 @@ const resourceChartOptions = computed(() => ({
   dataLabels: { enabled: true },
 }))
 
-const timelineBundle = computed(() => {
-  const recentLogs = [...(props.webrtc.eventLogs || [])].slice(0, 12).reverse()
-  const categories = recentLogs.map((_, index) => `T-${recentLogs.length - index}`)
-
-  return {
-    categories,
-    series: [
-      { name: "Signal", data: recentLogs.map(entry => entry.scope === "signal" ? 1 : 0) },
-      { name: "ICE", data: recentLogs.map(entry => entry.scope === "ice" ? 1 : 0) },
-      { name: "SDP", data: recentLogs.map(entry => entry.scope === "sdp" ? 1 : 0) },
-    ],
-  }
-})
-
 const timelineChartOptions = computed(() => ({
   chart: {
     toolbar: { show: false },
     background: "transparent",
     zoom: { enabled: false },
   },
-  colors: ["#0f766e", "#2563eb", "#f97316"],
+  colors: ["#0058a3", "#0f766e", "#ff9900"],
   dataLabels: { enabled: false },
   stroke: { curve: "smooth", width: 3 },
   fill: {
@@ -228,13 +246,11 @@ const timelineChartOptions = computed(() => ({
     },
   },
   xaxis: {
-    categories: timelineBundle.value.categories,
-    labels: { style: { colors: "#64748b" } },
+    type: "datetime",
+    labels: { datetimeUTC: false, style: { colors: "#64748b" } },
   },
   yaxis: {
     min: 0,
-    max: 1,
-    tickAmount: 1,
     labels: { style: { colors: "#64748b" } },
   },
   grid: {
@@ -247,16 +263,25 @@ const timelineChartOptions = computed(() => ({
   },
 }))
 
-const timelineSeriesData = computed(() => timelineBundle.value.series)
+const timelineSeriesData = computed(() => {
+  return timeseriesSource.value.map((item) => ({
+    name: item.name,
+    data: item.data.map(([timestamp, value]) => ({
+      x: new Date(timestamp).getTime(),
+      y: value,
+    })),
+  }))
+})
 
 const radarSeries = computed(() => [{
   name: "Operational Score",
   data: [
     props.webrtc.connectionState === "connected" ? 88 : 42,
+    cloudWatchPayload.value?.series?.length ? 92 : 38,
     props.webrtc.peerCount > 0 ? 74 : 30,
     props.webrtc.remoteStreams.length > 0 ? 80 : 28,
-    props.webrtc.eventLogs.some(entry => entry.scope === "ice") ? 76 : 34,
-    props.webrtc.eventLogs.some(entry => entry.scope === "sdp") ? 82 : 36,
+    recentLogRows.value.some(entry => entry.scope === "ice" || entry.message.includes("ICE")) ? 76 : 34,
+    recentLogRows.value.some(entry => entry.scope === "sdp" || entry.message.includes("offer") || entry.message.includes("answer")) ? 82 : 36,
   ],
 }])
 
@@ -266,10 +291,10 @@ const radarChartOptions = computed(() => ({
     background: "transparent",
   },
   xaxis: {
-    categories: ["Signal", "Peers", "Media", "ICE", "SDP"],
+    categories: ["Signal", "CloudWatch API", "Peers", "Media", "ICE", "SDP"],
     labels: {
       style: {
-        colors: ["#475569", "#475569", "#475569", "#475569", "#475569"],
+        colors: ["#475569", "#475569", "#475569", "#475569", "#475569", "#475569"],
         fontFamily: "Segoe UI, Noto Sans KR, sans-serif",
       },
     },
@@ -292,4 +317,47 @@ const radarChartOptions = computed(() => ({
     colors: ["#7c3aed"],
   },
 }))
+
+const recentLogRows = computed(() => {
+  if (cloudWatchRecent.value.length) {
+    return cloudWatchRecent.value.map((entry, index) => ({
+      id: `cw-${index}-${entry.timestamp || entry.createdAt || index}`,
+      scope: entry.service || "cloudwatch",
+      message: entry.event || entry.message || "recent_log",
+      createdAt: entry.timestamp || entry.createdAt || new Date().toISOString(),
+      details: entry,
+    }))
+  }
+
+  return props.webrtc.eventLogs || []
+})
+
+async function refreshCloudWatchData() {
+  try {
+    cloudWatchStatus.value = "Loading CloudWatch-style JSON from /api/log-timeseries and /api/log-recent..."
+
+    const [timeseriesResponse, recentResponse] = await Promise.all([
+      fetch("/api/log-timeseries?rangeMinutes=60&binMinutes=5"),
+      fetch("/api/log-recent?limit=20"),
+    ])
+
+    if (!timeseriesResponse.ok || !recentResponse.ok) {
+      throw new Error(`HTTP ${timeseriesResponse.status}/${recentResponse.status}`)
+    }
+
+    cloudWatchPayload.value = await timeseriesResponse.json()
+    const recentPayload = await recentResponse.json()
+    cloudWatchRecent.value = recentPayload.recentLogs || recentPayload.logs || []
+    cloudWatchStatus.value = "CloudWatch API payload connected. Charts are rendered from backend JSON."
+  } catch (error) {
+    cloudWatchPayload.value = null
+    cloudWatchRecent.value = []
+    cloudWatchStatus.value = "CloudWatch API unavailable. Falling back to frontend-derived sample metrics."
+    console.warn("[SystemPanel] CloudWatch API fetch failed", error)
+  }
+}
+
+onMounted(() => {
+  refreshCloudWatchData()
+})
 </script>
