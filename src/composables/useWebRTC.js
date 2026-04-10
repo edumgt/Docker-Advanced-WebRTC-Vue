@@ -1,15 +1,26 @@
 import { reactive } from "vue"
 import { buildSignalUrl } from "../utils/signalUrl"
 
+let activeLogSink = null
+
 function logWebRTC(scope, message, details) {
   const prefix = `[WebRTC][${scope}] ${message}`
+  const entry = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    scope,
+    message,
+    details: details ?? null,
+    createdAt: new Date().toISOString(),
+  }
 
   if (details === undefined) {
     console.log(prefix)
-    return
+  } else {
+    console.log(prefix, details)
   }
 
-  console.log(prefix, details)
+  activeLogSink?.(entry)
+  return entry
 }
 
 function summarizeSdp(sessionDescription) {
@@ -60,6 +71,9 @@ export default function useWebRTC(roomId, joined) {
     connectionError: "",
     connectionState: "idle",
     signalUrl: currentSignalUrl,
+    activeRoomId: "",
+    peerCount: 0,
+    eventLogs: [],
     localStream: null,
     remoteStreams: [],
     sendChat(msg) {
@@ -136,12 +150,17 @@ export default function useWebRTC(roomId, joined) {
     },
   })
 
+  activeLogSink = (entry) => {
+    webrtc.eventLogs = [entry, ...webrtc.eventLogs].slice(0, 120)
+  }
+
   function refreshRemoteStreams() {
     webrtc.remoteStreams = Array.from(remoteMediaStreams.entries()).map(([id, stream]) => ({
       id,
       label: `Peer ${id}`,
       stream,
     }))
+    webrtc.peerCount = peers.size
   }
 
   function refreshPeerTracks(pc) {
@@ -190,6 +209,7 @@ export default function useWebRTC(roomId, joined) {
 
     currentSignalUrl = buildSignalUrl(overrideSignalUrl)
     webrtc.signalUrl = currentSignalUrl
+    webrtc.activeRoomId = roomId.value
     webrtc.connectionError = ""
     webrtc.connectionState = "connecting"
     logWebRTC("signal", "opening WebSocket", {
@@ -205,6 +225,7 @@ export default function useWebRTC(roomId, joined) {
       logWebRTC("signal", "join-room sent", { roomId: roomId.value, sender: clientId })
       joined.value = true
       webrtc.connectionState = "connected"
+      webrtc.activeRoomId = roomId.value
     }
 
     ws.onmessage = async (event) => {
@@ -274,6 +295,7 @@ export default function useWebRTC(roomId, joined) {
   function createPeer(remoteId) {
     const pc = new RTCPeerConnection()
     peers.set(remoteId, pc)
+    webrtc.peerCount = peers.size
     refreshPeerTracks(pc)
 
     logWebRTC("peer", "RTCPeerConnection created", {
@@ -319,6 +341,8 @@ export default function useWebRTC(roomId, joined) {
       if (["closed", "failed", "disconnected"].includes(pc.connectionState)) {
         remoteMediaStreams.delete(remoteId)
         refreshRemoteStreams()
+        peers.delete(remoteId)
+        webrtc.peerCount = peers.size
       }
     }
 
