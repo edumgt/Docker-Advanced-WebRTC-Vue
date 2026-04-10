@@ -6,10 +6,11 @@ function getRuntimeConfig() {
   return window.__APP_CONFIG__ || {}
 }
 
-export function buildSignalUrl() {
+export function buildSignalUrl(overrideSignalUrl = "") {
+  const manualUrl = overrideSignalUrl?.trim()
   const runtimeEnvUrl = getRuntimeConfig().VITE_SIGNAL_URL?.trim()
   const buildEnvUrl = import.meta.env.VITE_SIGNAL_URL?.trim()
-  const envUrl = runtimeEnvUrl || buildEnvUrl
+  const envUrl = manualUrl || runtimeEnvUrl || buildEnvUrl
 
   if (envUrl) {
     if (envUrl.startsWith("ws://") || envUrl.startsWith("wss://")) {

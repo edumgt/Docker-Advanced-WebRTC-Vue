@@ -1,14 +1,14 @@
 <template>
-  <div class="border p-3 rounded w-96 bg-white shadow">
-    <h3 class="font-bold mb-2">💬 Chat</h3>
-    <div class="h-40 overflow-y-auto border p-2 mb-2 bg-gray-50" ref="chatBox">
+  <div class="chat-shell">
+    <h3 class="font-bold mb-2">Chat</h3>
+    <div class="h-56 overflow-y-auto border p-3 mb-3 rounded-2xl bg-slate-50" ref="chatBox">
       <div v-for="(msg, i) in messages" :key="i" class="text-sm">
         {{ msg }}
       </div>
     </div>
     <input v-model="chatInput" @keyup.enter="sendChat"
            placeholder="메시지 입력"
-           class="border px-2 py-1 w-full rounded" />
+           class="border px-3 py-3 w-full rounded-2xl" />
   </div>
 </template>
 

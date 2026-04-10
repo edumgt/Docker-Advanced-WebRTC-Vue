@@ -1,8 +1,8 @@
 <template>
-  <div class="border p-3 rounded w-96 bg-white shadow">
-    <h3 class="font-bold mb-2">📂 File Transfer</h3>
-    <input type="file" @change="sendFile" class="mb-2"/>
-    <ul>
+  <div class="file-shell">
+    <h3 class="font-bold mb-2">File Transfer</h3>
+    <input type="file" @change="sendFile" class="mb-3 block w-full"/>
+    <ul class="space-y-2">
       <li v-for="(file, i) in receivedFiles" :key="i">
         <a :href="file.url" :download="file.name" class="text-blue-600 underline">
           {{ file.name }}

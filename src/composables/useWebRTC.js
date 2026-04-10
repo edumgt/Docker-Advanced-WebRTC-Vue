@@ -45,18 +45,23 @@ function summarizeCandidate(candidate) {
 
 export default function useWebRTC(roomId, joined) {
   let ws
-  const signalUrl = buildSignalUrl()
+  let currentSignalUrl = buildSignalUrl()
+  let localMediaStream = null
+  let localMediaMode = "camera"
+
   const peers = new Map()
   const chatChannels = new Map()
   const fileChannels = new Map()
   const drawChannels = new Map()
-
+  const remoteMediaStreams = new Map()
   const clientId = Math.random().toString(36).substring(2, 10)
 
   const webrtc = reactive({
     connectionError: "",
     connectionState: "idle",
-    signalUrl,
+    signalUrl: currentSignalUrl,
+    localStream: null,
+    remoteStreams: [],
     sendChat(msg) {
       chatChannels.forEach((ch) => {
         if (ch.readyState === "open") ch.send(msg)
@@ -65,7 +70,6 @@ export default function useWebRTC(roomId, joined) {
     onChat(callback) {
       webrtc._chatHandler = callback
     },
-
     sendFile(file) {
       fileChannels.forEach((ch) => {
         if (ch.readyState === "open") {
@@ -77,7 +81,6 @@ export default function useWebRTC(roomId, joined) {
     onFile(callback) {
       webrtc._fileHandler = callback
     },
-
     broadcastDraw(data) {
       drawChannels.forEach(ch => {
         if (ch.readyState === "open") ch.send(JSON.stringify(data))
@@ -85,17 +88,119 @@ export default function useWebRTC(roomId, joined) {
     },
     onDraw(callback) {
       webrtc._drawHandler = callback
-    }
+    },
+    async startCameraShare() {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: true,
+      })
+      localMediaMode = "camera"
+      updateLocalStream(stream)
+      logWebRTC("media", "camera stream started", {
+        tracks: stream.getTracks().map(track => ({ kind: track.kind, label: track.label })),
+      })
+    },
+    stopCameraShare() {
+      if (localMediaMode === "camera") {
+        clearLocalStream()
+        logWebRTC("media", "camera stream stopped")
+      }
+    },
+    async startScreenShare() {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: true,
+      })
+      localMediaMode = "screen"
+      updateLocalStream(stream)
+      const [videoTrack] = stream.getVideoTracks()
+
+      if (videoTrack) {
+        videoTrack.addEventListener("ended", () => {
+          if (localMediaMode === "screen") {
+            clearLocalStream()
+            logWebRTC("media", "screen share ended by browser")
+          }
+        }, { once: true })
+      }
+
+      logWebRTC("media", "screen stream started", {
+        tracks: stream.getTracks().map(track => ({ kind: track.kind, label: track.label })),
+      })
+    },
+    stopScreenShare() {
+      if (localMediaMode === "screen") {
+        clearLocalStream()
+        logWebRTC("media", "screen stream stopped")
+      }
+    },
   })
 
-  function joinRoom() {
+  function refreshRemoteStreams() {
+    webrtc.remoteStreams = Array.from(remoteMediaStreams.entries()).map(([id, stream]) => ({
+      id,
+      label: `Peer ${id}`,
+      stream,
+    }))
+  }
+
+  function refreshPeerTracks(pc) {
+    if (!localMediaStream) return
+
+    localMediaStream.getTracks().forEach(track => {
+      const sender = pc.getSenders().find(item => item.track?.kind === track.kind)
+      if (sender) {
+        sender.replaceTrack(track)
+      } else {
+        pc.addTrack(track, localMediaStream)
+      }
+    })
+  }
+
+  function clearLocalStream() {
+    if (!localMediaStream) return
+
+    localMediaStream.getTracks().forEach(track => track.stop())
+    localMediaStream = null
+    webrtc.localStream = null
+
+    peers.forEach(pc => {
+      pc.getSenders().forEach(sender => {
+        if (sender.track && (sender.track.kind === "audio" || sender.track.kind === "video")) {
+          sender.replaceTrack(null)
+        }
+      })
+    })
+  }
+
+  function updateLocalStream(stream) {
+    if (localMediaStream && localMediaStream !== stream) {
+      localMediaStream.getTracks().forEach(track => track.stop())
+    }
+
+    localMediaStream = stream
+    webrtc.localStream = stream
+    peers.forEach(refreshPeerTracks)
+  }
+
+  function joinRoom(overrideSignalUrl = "") {
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+      ws.close(1000, "reconnect")
+    }
+
+    currentSignalUrl = buildSignalUrl(overrideSignalUrl)
+    webrtc.signalUrl = currentSignalUrl
     webrtc.connectionError = ""
     webrtc.connectionState = "connecting"
-    logWebRTC("signal", "opening WebSocket", { signalUrl, roomId: roomId.value, clientId })
-    ws = new WebSocket(signalUrl)
+    logWebRTC("signal", "opening WebSocket", {
+      signalUrl: currentSignalUrl,
+      roomId: roomId.value,
+      clientId,
+    })
+    ws = new WebSocket(currentSignalUrl)
 
     ws.onopen = () => {
-      logWebRTC("signal", "WebSocket connected", { signalUrl, readyState: ws.readyState })
+      logWebRTC("signal", "WebSocket connected", { signalUrl: currentSignalUrl, readyState: ws.readyState })
       ws.send(JSON.stringify({ type: "join-room", roomId: roomId.value, sender: clientId }))
       logWebRTC("signal", "join-room sent", { roomId: roomId.value, sender: clientId })
       joined.value = true
@@ -150,8 +255,8 @@ export default function useWebRTC(roomId, joined) {
     ws.onerror = () => {
       joined.value = false
       webrtc.connectionState = "error"
-      webrtc.connectionError = `WebSocket connection failed: ${signalUrl}`
-      logWebRTC("signal", "WebSocket error", { signalUrl, readyState: ws.readyState })
+      webrtc.connectionError = `WebSocket connection failed: ${currentSignalUrl}`
+      logWebRTC("signal", "WebSocket error", { signalUrl: currentSignalUrl, readyState: ws.readyState })
     }
 
     ws.onclose = (event) => {
@@ -169,6 +274,8 @@ export default function useWebRTC(roomId, joined) {
   function createPeer(remoteId) {
     const pc = new RTCPeerConnection()
     peers.set(remoteId, pc)
+    refreshPeerTracks(pc)
+
     logWebRTC("peer", "RTCPeerConnection created", {
       remoteId,
       signalingState: pc.signalingState,
@@ -176,6 +283,18 @@ export default function useWebRTC(roomId, joined) {
       iceConnectionState: pc.iceConnectionState,
       connectionState: pc.connectionState,
     })
+
+    pc.ontrack = (event) => {
+      const [stream] = event.streams
+      if (!stream) return
+      remoteMediaStreams.set(remoteId, stream)
+      refreshRemoteStreams()
+      logWebRTC("media", "remote media track received", {
+        remoteId,
+        kind: event.track.kind,
+        label: event.track.label,
+      })
+    }
 
     pc.onicegatheringstatechange = () => {
       logWebRTC("ice", "ICE gathering state changed", {
@@ -196,6 +315,11 @@ export default function useWebRTC(roomId, joined) {
         remoteId,
         connectionState: pc.connectionState,
       })
+
+      if (["closed", "failed", "disconnected"].includes(pc.connectionState)) {
+        remoteMediaStreams.delete(remoteId)
+        refreshRemoteStreams()
+      }
     }
 
     pc.onsignalingstatechange = () => {
@@ -216,7 +340,7 @@ export default function useWebRTC(roomId, joined) {
         event.channel.onmessage = (e) => webrtc._chatHandler?.(e.data)
       } else if (event.channel.label === "file") {
         fileChannels.set(remoteId, event.channel)
-        setupFileChannel(remoteId, event.channel)
+        setupFileChannel(event.channel)
       } else if (event.channel.label === "draw") {
         drawChannels.set(remoteId, event.channel)
         event.channel.onmessage = (e) => webrtc._drawHandler?.(JSON.parse(e.data))
@@ -230,7 +354,7 @@ export default function useWebRTC(roomId, joined) {
           type: "candidate",
           candidate: event.candidate,
           roomId: roomId.value,
-          sender: clientId
+          sender: clientId,
         }))
         logWebRTC("signal", "ICE candidate sent", { remoteId, roomId: roomId.value })
       } else {
@@ -257,7 +381,7 @@ export default function useWebRTC(roomId, joined) {
     drawChannels.set(remoteId, drawChannel)
 
     chatChannel.onmessage = (e) => webrtc._chatHandler?.(e.data)
-    setupFileChannel(remoteId, fileChannel)
+    setupFileChannel(fileChannel)
     drawChannel.onmessage = (e) => webrtc._drawHandler?.(JSON.parse(e.data))
 
     const offer = await pc.createOffer()
@@ -271,7 +395,7 @@ export default function useWebRTC(roomId, joined) {
     logWebRTC("signal", "offer sent", { remoteId, roomId: roomId.value })
   }
 
-  function setupFileChannel(remoteId, channel) {
+  function setupFileChannel(channel) {
     let buffer = []
     let fileName = ""
     channel.onmessage = (event) => {
