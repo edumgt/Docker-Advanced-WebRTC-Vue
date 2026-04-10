@@ -62,6 +62,53 @@
       </article>
     </div>
 
+    <div class="system-chart-grid">
+      <article class="system-panel">
+        <div class="system-panel__header">
+          <div>
+            <p class="system-card__eyebrow">Resource Distribution</p>
+            <h3>Donut Sample</h3>
+          </div>
+        </div>
+        <apexchart
+          type="donut"
+          height="300"
+          :options="resourceChartOptions"
+          :series="resourceSeries"
+        />
+      </article>
+
+      <article class="system-panel">
+        <div class="system-panel__header">
+          <div>
+            <p class="system-card__eyebrow">Time Series</p>
+            <h3>Signal Activity Trend</h3>
+          </div>
+        </div>
+        <apexchart
+          type="area"
+          height="300"
+          :options="timelineChartOptions"
+          :series="timelineSeriesData"
+        />
+      </article>
+
+      <article class="system-panel">
+        <div class="system-panel__header">
+          <div>
+            <p class="system-card__eyebrow">Radar</p>
+            <h3>CloudWatch Analysis Sample</h3>
+          </div>
+        </div>
+        <apexchart
+          type="radar"
+          height="300"
+          :options="radarChartOptions"
+          :series="radarSeries"
+        />
+      </article>
+    </div>
+
     <article class="system-panel">
       <div class="system-panel__header">
         <div>
@@ -85,10 +132,13 @@
 
 <script setup>
 import { computed } from "vue"
+import VueApexCharts from "vue3-apexcharts"
 
 const props = defineProps({
   webrtc: { type: Object, required: true },
 })
+
+const apexchart = VueApexCharts
 
 const transportLabel = computed(() => {
   if (props.webrtc.signalUrl?.startsWith("wss://")) return "WSS / 443-style secure WebSocket"
@@ -118,4 +168,128 @@ const analysis = computed(() => {
       : "Offer/Answer pair incomplete. Compare frontend event order with signaling pod logs in CloudWatch.",
   }
 })
+
+const resourceSeries = computed(() => {
+  const remoteStreams = props.webrtc.remoteStreams.length
+  const peers = props.webrtc.peerCount || 0
+  const logs = Math.min(props.webrtc.eventLogs.length, 100)
+
+  return [
+    Math.max(22, remoteStreams * 18 + 18),
+    Math.max(18, peers * 14 + 16),
+    Math.max(14, Math.round(logs * 0.5) + 12),
+  ]
+})
+
+const resourceChartOptions = computed(() => ({
+  chart: {
+    toolbar: { show: false },
+    background: "transparent",
+  },
+  labels: ["Media Streams", "Peer Sessions", "Event Logs"],
+  colors: ["#0f766e", "#f97316", "#2563eb"],
+  legend: {
+    position: "bottom",
+    fontFamily: "Segoe UI, Noto Sans KR, sans-serif",
+  },
+  stroke: { colors: ["#ffffff"] },
+  dataLabels: { enabled: true },
+}))
+
+const timelineBundle = computed(() => {
+  const recentLogs = [...(props.webrtc.eventLogs || [])].slice(0, 12).reverse()
+  const categories = recentLogs.map((_, index) => `T-${recentLogs.length - index}`)
+
+  return {
+    categories,
+    series: [
+      { name: "Signal", data: recentLogs.map(entry => entry.scope === "signal" ? 1 : 0) },
+      { name: "ICE", data: recentLogs.map(entry => entry.scope === "ice" ? 1 : 0) },
+      { name: "SDP", data: recentLogs.map(entry => entry.scope === "sdp" ? 1 : 0) },
+    ],
+  }
+})
+
+const timelineChartOptions = computed(() => ({
+  chart: {
+    toolbar: { show: false },
+    background: "transparent",
+    zoom: { enabled: false },
+  },
+  colors: ["#0f766e", "#2563eb", "#f97316"],
+  dataLabels: { enabled: false },
+  stroke: { curve: "smooth", width: 3 },
+  fill: {
+    type: "gradient",
+    gradient: {
+      shadeIntensity: 1,
+      opacityFrom: 0.3,
+      opacityTo: 0.06,
+    },
+  },
+  xaxis: {
+    categories: timelineBundle.value.categories,
+    labels: { style: { colors: "#64748b" } },
+  },
+  yaxis: {
+    min: 0,
+    max: 1,
+    tickAmount: 1,
+    labels: { style: { colors: "#64748b" } },
+  },
+  grid: {
+    borderColor: "rgba(148, 163, 184, 0.18)",
+  },
+  legend: {
+    position: "top",
+    horizontalAlign: "left",
+    fontFamily: "Segoe UI, Noto Sans KR, sans-serif",
+  },
+}))
+
+const timelineSeriesData = computed(() => timelineBundle.value.series)
+
+const radarSeries = computed(() => [{
+  name: "Operational Score",
+  data: [
+    props.webrtc.connectionState === "connected" ? 88 : 42,
+    props.webrtc.peerCount > 0 ? 74 : 30,
+    props.webrtc.remoteStreams.length > 0 ? 80 : 28,
+    props.webrtc.eventLogs.some(entry => entry.scope === "ice") ? 76 : 34,
+    props.webrtc.eventLogs.some(entry => entry.scope === "sdp") ? 82 : 36,
+  ],
+}])
+
+const radarChartOptions = computed(() => ({
+  chart: {
+    toolbar: { show: false },
+    background: "transparent",
+  },
+  xaxis: {
+    categories: ["Signal", "Peers", "Media", "ICE", "SDP"],
+    labels: {
+      style: {
+        colors: ["#475569", "#475569", "#475569", "#475569", "#475569"],
+        fontFamily: "Segoe UI, Noto Sans KR, sans-serif",
+      },
+    },
+  },
+  yaxis: {
+    show: false,
+    min: 0,
+    max: 100,
+  },
+  fill: {
+    opacity: 0.24,
+    colors: ["#7c3aed"],
+  },
+  stroke: {
+    width: 2,
+    colors: ["#7c3aed"],
+  },
+  markers: {
+    size: 4,
+    colors: ["#7c3aed"],
+  },
+}))
 </script>

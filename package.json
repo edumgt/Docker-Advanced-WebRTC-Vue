@@ -14,7 +14,9 @@
     "start:wsl": "bash -c \"npm run signal & npm run dev:wsl\""
   },
   "dependencies": {
+    "apexcharts": "^4.7.0",
     "vue": "^3.5.18",
+    "vue3-apexcharts": "^1.8.0",
     "ws": "^8.19.0"
   },
   "devDependencies": {

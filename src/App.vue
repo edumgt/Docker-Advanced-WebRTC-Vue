@@ -1,6 +1,12 @@
 <template>
   <div class="app-shell">
-    <aside class="dock">
+    <div
+      class="dock-backdrop"
+      :class="{ 'is-open': drawerOpen }"
+      @click="drawerOpen = false"
+    ></div>
+
+    <aside class="dock" :class="{ 'is-open': drawerOpen }">
       <div class="dock__brand">
         <p class="dock__eyebrow">Realtime Workspace</p>
         <h1>WebRTC Studio</h1>
@@ -12,7 +18,7 @@
           :key="item.key"
           class="dock__menu-button"
           :class="{ 'is-active': activePanel === item.key }"
-          @click="activePanel = item.key"
+          @click="selectPanel(item.key)"
         >
           <span>{{ item.label }}</span>
           <small>{{ item.caption }}</small>
@@ -21,6 +27,19 @@
     </aside>
 
     <main class="workspace">
+      <header class="workspace__topbar">
+        <button class="hamburger-button" @click="drawerOpen = !drawerOpen" aria-label="Open navigation">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <div class="workspace__topbar-copy">
+          <p class="workspace__eyebrow">Light, Functional, Everyday</p>
+          <h2>{{ activePanelTitle }}</h2>
+        </div>
+      </header>
+
       <section class="hero-card">
         <div class="hero-card__header">
           <div>
@@ -102,6 +121,7 @@ import useWebRTC from "./composables/useWebRTC"
 const roomId = ref("")
 const joined = ref(false)
 const activePanel = ref("drawing")
+const drawerOpen = ref(false)
 
 const { joinRoom, webrtc } = useWebRTC(roomId, joined)
 const signalServerUrl = ref(webrtc.signalUrl)
@@ -133,5 +153,10 @@ const connectionLabel = computed(() => {
 
 function joinCurrentRoom() {
   joinRoom(signalServerUrl.value)
+}
+
+function selectPanel(panelKey) {
+  activePanel.value = panelKey
+  drawerOpen.value = false
 }
 </script>

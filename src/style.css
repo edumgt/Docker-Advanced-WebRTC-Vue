@@ -5,9 +5,7 @@
 :root {
   color: #111827;
   background:
-    radial-gradient(circle at top left, rgba(255, 218, 185, 0.45), transparent 25%),
-    radial-gradient(circle at top right, rgba(125, 211, 252, 0.22), transparent 28%),
-    linear-gradient(140deg, #f5efe6 0%, #eef5fb 46%, #f8fafc 100%);
+    linear-gradient(180deg, #f7f5ef 0%, #f4f1ea 100%);
   font-family: "Segoe UI", "Noto Sans KR", sans-serif;
 }
 
@@ -22,20 +20,45 @@ body {
 
 .app-shell {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 16rem 1fr;
+  position: relative;
 }
 
 .dock {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: min(19rem, 84vw);
+  height: 100vh;
   padding: 1.5rem;
-  background: rgba(15, 23, 42, 0.96);
-  color: #f8fafc;
+  background: #fffbf2;
+  color: #111827;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  position: sticky;
-  top: 0;
-  min-height: 100vh;
+  border-right: 1px solid rgba(17, 24, 39, 0.08);
+  box-shadow: 18px 0 42px rgba(15, 23, 42, 0.12);
+  transform: translateX(-104%);
+  transition: transform 0.24s ease;
+  z-index: 30;
+}
+
+.dock.is-open {
+  transform: translateX(0);
+}
+
+.dock-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 20;
+}
+
+.dock-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .dock__brand h1,
@@ -56,7 +79,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.16em;
   font-size: 0.72rem;
-  color: rgba(148, 163, 184, 0.96);
+  color: #6b7280;
 }
 
 .dock__menu {
@@ -77,31 +100,74 @@ body {
 .dock__menu-button {
   padding: 1rem;
   text-align: left;
-  background: rgba(30, 41, 59, 0.85);
-  color: #e2e8f0;
+  background: transparent;
+  color: #1f2937;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  border: 1px solid transparent;
 }
 
 .dock__menu-button small {
-  color: #94a3b8;
+  color: #6b7280;
 }
 
 .dock__menu-button.is-active {
-  background: linear-gradient(135deg, #f97316, #fb923c);
-  color: #fff7ed;
-  box-shadow: 0 18px 34px rgba(249, 115, 22, 0.3);
+  background: #0058a3;
+  color: #ffffff;
+  box-shadow: none;
 }
 
 .dock__menu-button.is-active small {
-  color: rgba(255, 237, 213, 0.94);
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .workspace {
   padding: 2rem;
   display: grid;
   gap: 1.5rem;
+}
+
+.workspace__topbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.workspace__topbar-copy h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.workspace__eyebrow {
+  margin: 0 0 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+.hamburger-button {
+  width: 3rem;
+  height: 3rem;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.28rem;
+  padding: 0.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: #0058a3;
+  cursor: pointer;
+}
+
+.hamburger-button span {
+  width: 100%;
+  height: 2px;
+  background: #ffda1a;
+  display: block;
+  border-radius: 999px;
 }
 
 .hero-card,
@@ -112,10 +178,10 @@ body {
 .system-card,
 .system-panel,
 .board-shell {
-  border-radius: 1.5rem;
-  background: rgba(255, 255, 255, 0.84);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 24px 52px rgba(15, 23, 42, 0.12);
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
 .hero-card,
@@ -124,6 +190,19 @@ body {
 .file-shell,
 .system-panel {
   padding: 1.5rem;
+}
+
+.hero-card,
+.content-card,
+.chat-shell,
+.file-shell,
+.stream-card,
+.system-card,
+.system-panel {
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.56);
+  box-shadow: none;
+  border: 1px solid rgba(17, 24, 39, 0.08);
 }
 
 .hero-card__header,
@@ -229,26 +308,27 @@ body {
 
 .primary-button {
   color: #fff;
-  background: linear-gradient(135deg, #0f766e, #14b8a6);
+  background: #0058a3;
 }
 
 .primary-button--secondary {
-  background: linear-gradient(135deg, #2563eb, #38bdf8);
+  background: #ffda1a;
+  color: #111827;
 }
 
 .ghost-button {
-  background: rgba(148, 163, 184, 0.14);
+  background: rgba(0, 88, 163, 0.08);
   color: #0f172a;
 }
 
 .tool-chip {
-  background: rgba(226, 232, 240, 0.9);
+  background: rgba(17, 24, 39, 0.05);
   color: #0f172a;
 }
 
 .tool-chip.is-active {
-  background: linear-gradient(135deg, #1d4ed8, #38bdf8);
-  color: #eff6ff;
+  background: #ffda1a;
+  color: #111827;
 }
 
 .content-card__body {
@@ -286,11 +366,11 @@ body {
 .board-stage {
   width: 100%;
   overflow: auto;
-  border-radius: 1.25rem;
+  border-radius: 0.9rem;
   background:
-    linear-gradient(#f8fafc 1px, transparent 1px),
-    linear-gradient(90deg, #f8fafc 1px, transparent 1px),
-    #ffffff;
+    linear-gradient(#ece7dc 1px, transparent 1px),
+    linear-gradient(90deg, #ece7dc 1px, transparent 1px),
+    #fffdf7;
   background-size: 32px 32px, 32px 32px, auto;
   padding: 1rem;
   min-height: 72vh;
@@ -318,7 +398,8 @@ body {
 
 .media-panel__grid,
 .system-grid,
-.system-analysis {
+.system-analysis,
+.system-chart-grid {
   display: grid;
   gap: 1rem;
 }
@@ -352,6 +433,11 @@ body {
 
 .system-analysis {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 1rem;
+}
+
+.system-chart-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-bottom: 1rem;
 }
 
@@ -425,7 +511,12 @@ body {
 
   .hero-card__grid,
   .system-grid,
-  .system-analysis {
+  .system-analysis,
+  .system-chart-grid {
     grid-template-columns: 1fr;
+  }
+
+  .workspace {
+    padding: 1rem;
   }
 }
