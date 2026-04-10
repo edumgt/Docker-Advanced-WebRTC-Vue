@@ -3,6 +3,7 @@ import { buildSignalUrl } from "../utils/signalUrl"
 
 export default function useWebRTC(roomId, joined) {
   let ws
+  const signalUrl = buildSignalUrl()
   const peers = new Map()
   const chatChannels = new Map()
   const fileChannels = new Map()
@@ -11,6 +12,9 @@ export default function useWebRTC(roomId, joined) {
   const clientId = Math.random().toString(36).substring(2, 10)
 
   const webrtc = reactive({
+    connectionError: "",
+    connectionState: "idle",
+    signalUrl,
     sendChat(msg) {
       chatChannels.forEach((ch) => {
         if (ch.readyState === "open") ch.send(msg)
@@ -43,10 +47,14 @@ export default function useWebRTC(roomId, joined) {
   })
 
   function joinRoom() {
-    ws = new WebSocket(buildSignalUrl())
+    webrtc.connectionError = ""
+    webrtc.connectionState = "connecting"
+    ws = new WebSocket(signalUrl)
+
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: "join-room", roomId: roomId.value, sender: clientId }))
       joined.value = true
+      webrtc.connectionState = "connected"
     }
 
     ws.onmessage = async (event) => {
@@ -67,6 +75,18 @@ export default function useWebRTC(roomId, joined) {
         }
       } else if (data.type === "candidate" && data.candidate) {
         await pc.addIceCandidate(new RTCIceCandidate(data.candidate))
+      }
+    }
+
+    ws.onerror = () => {
+      joined.value = false
+      webrtc.connectionState = "error"
+      webrtc.connectionError = `WebSocket connection failed: ${signalUrl}`
+    }
+
+    ws.onclose = () => {
+      if (webrtc.connectionState !== "error") {
+        webrtc.connectionState = "closed"
       }
     }
   }

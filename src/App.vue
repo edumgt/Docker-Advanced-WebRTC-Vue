@@ -7,6 +7,12 @@
       <button @click="joinRoom" class="px-4 py-2 bg-blue-500 text-white rounded">🚪 Join Room</button>
     </div>
 
+    <div class="max-w-3xl mx-auto w-full text-sm">
+      <p class="text-gray-600">Signal URL: {{ webrtc.signalUrl }}</p>
+      <p v-if="webrtc.connectionState === 'connecting'" class="text-amber-600">Connecting to signaling server...</p>
+      <p v-if="webrtc.connectionError" class="text-red-600 break-all">{{ webrtc.connectionError }}</p>
+    </div>
+
     
     <Whiteboard v-if="joined" :webrtc="webrtc" />
 

@@ -17,6 +17,8 @@ COPY frontend-server.cjs ./
 
 ENV FRONTEND_HOST=0.0.0.0
 ENV FRONTEND_PORT=80
+ENV VITE_SIGNAL_URL=
+ENV VITE_SIGNAL_PORT=3001
 
 EXPOSE 80
 CMD ["node", "frontend-server.cjs"]

@@ -2,8 +2,14 @@ function getWebSocketProtocol() {
   return window.location.protocol === "https:" ? "wss" : "ws"
 }
 
+function getRuntimeConfig() {
+  return window.__APP_CONFIG__ || {}
+}
+
 export function buildSignalUrl() {
-  const envUrl = import.meta.env.VITE_SIGNAL_URL?.trim()
+  const runtimeEnvUrl = getRuntimeConfig().VITE_SIGNAL_URL?.trim()
+  const buildEnvUrl = import.meta.env.VITE_SIGNAL_URL?.trim()
+  const envUrl = runtimeEnvUrl || buildEnvUrl
 
   if (envUrl) {
     if (envUrl.startsWith("ws://") || envUrl.startsWith("wss://")) {
@@ -14,6 +20,6 @@ export function buildSignalUrl() {
   }
 
   const host = window.location.hostname || "localhost"
-  const port = import.meta.env.VITE_SIGNAL_PORT || "3001"
+  const port = getRuntimeConfig().VITE_SIGNAL_PORT || import.meta.env.VITE_SIGNAL_PORT || "3001"
   return `${getWebSocketProtocol()}://${host}:${port}`
 }
