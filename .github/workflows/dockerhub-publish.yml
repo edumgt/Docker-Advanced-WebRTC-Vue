@@ -44,7 +44,6 @@ jobs:
           images: edumgt/${{ matrix.image_name }}
           tags: |
             type=raw,value=latest
-            type=sha,format=short
 
       - name: Build and push ${{ matrix.image_name }}
         uses: docker/build-push-action@v6
