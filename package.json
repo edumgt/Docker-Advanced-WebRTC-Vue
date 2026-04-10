@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "node frontend-server.cjs",
     "dev:wsl": "vite --host 0.0.0.0 --port 5173",
-    "signal": "node signal.js",
+    "signal": "node server.cjs",
+    "start:frontend": "node frontend-server.cjs",
+    "start:signaling": "node server.cjs",
     "start:wsl": "bash -c \"npm run signal & npm run dev:wsl\""
   },
   "dependencies": {

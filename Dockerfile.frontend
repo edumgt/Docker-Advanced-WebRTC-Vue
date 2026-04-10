@@ -8,10 +8,15 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM nginx:alpine
+FROM node:20-alpine
 
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
+
+COPY --from=build /app/dist ./dist
+COPY frontend-server.cjs ./
+
+ENV FRONTEND_HOST=0.0.0.0
+ENV FRONTEND_PORT=80
 
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "frontend-server.cjs"]

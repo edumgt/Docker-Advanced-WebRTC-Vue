@@ -2,7 +2,8 @@
 const http = require("http");
 const WebSocket = require("ws");
 
-const port = Number(process.env.PORT || 3001);
+const host = process.env.SIGNAL_HOST || "0.0.0.0";
+const port = Number(process.env.SIGNAL_PORT || process.env.PORT || 3001);
 
 // 1) HTTP 서버 (EB/ALB 헬스체크용)
 const server = http.createServer((req, res) => {
@@ -98,7 +99,6 @@ wss.on("connection", (ws) => {
   });
 });
 
-// 3) EB/컨테이너 환경에서 외부 접속 받으려면 0.0.0.0 권장
-server.listen(port, "0.0.0.0", () => {
-  console.log(`🚀 Signaling server running on :${port} (health: /health)`);
+server.listen(port, host, () => {
+  console.log(`🚀 Signaling server running on ${host}:${port} (health: /health)`);
 });
