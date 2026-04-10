@@ -396,13 +396,14 @@ proxy_pass http://my-app-backend.eba-jnvhrxk5.ap-northeast-2.elasticbeanstalk.co
 
 ### Front End OK 내역
 ![alt text](image-45.png)
+```js
+ws = new WebSocket("wss://your-load-balancer-dns")
 ```
+또는 로컬 개발에서는
+```js
 ws = new WebSocket("ws://localhost:3001")
 ```
-위의 소스 부분이 있다면 수정
-```
-ws = new WebSocket("ws://my-app-backend.eba-jnvhrxk5.ap-northeast-2.elasticbeanstalk.com")
-```
+현재 소스는 `.env`의 `VITE_SIGNAL_URL`을 우선 사용하고, 비어 있으면 브라우저 프로토콜에 따라 `ws://` 또는 `wss://`를 자동 선택하도록 정리되어 있음
 
 ### todo
 > .env 를 이용한 dev, prod 의 환경 구성

@@ -38,12 +38,12 @@ npm run start:wsl
 
 ### 환경 변수
 
-- `VITE_SIGNAL_URL`: 프론트에서 사용할 시그널 서버 주소 (예: `ws://localhost:3001`)
+- `VITE_SIGNAL_URL`: 프론트에서 사용할 시그널 서버 주소. 전체 URL 사용 권장 (예: `ws://localhost:3001`, `wss://your-clb-dns`)
 - `VITE_SIGNAL_PORT`: `VITE_SIGNAL_URL` 미설정 시 사용할 기본 포트 (기본값: `3001`)
 - `SIGNAL_HOST`: 시그널 서버 바인딩 호스트 (기본값: `0.0.0.0`)
 - `SIGNAL_PORT`: 시그널 서버 포트 (기본값: `3001`)
 
-기본 설정으로도 WSL에서 바로 동작하도록 구성되어 있으며, 브라우저 접속 호스트 기준으로 자동으로 `ws://<host>:3001`를 사용합니다.
+기본 설정으로도 WSL에서 바로 동작하도록 구성되어 있으며, 브라우저 접속 호스트 기준으로 자동으로 `ws://<host>:3001` 또는 `wss://<host>:3001`를 사용합니다.
 
 ---
 
@@ -185,7 +185,7 @@ wss.on("connection", (ws) => {
   })
 })
 
-console.log("✅ Signaling server running on ws://my-app-backend.eba-jnvhrxk5.ap-northeast-2.elasticbeanstalk.com")
+console.log("✅ Signaling server running on ws://0.0.0.0:3001")
 ```
 
 > 만약 CommonJS(require)로 쓰고 싶다면:
@@ -220,7 +220,7 @@ const { WebSocketServer } = require("ws")
 
 ```bash
 node signal.js
-# ✅ Signaling server running on ws://my-app-backend.eba-jnvhrxk5.ap-northeast-2.elasticbeanstalk.com
+# ✅ Signaling server running on ws://0.0.0.0:3001
 ```
 
 ### 6-2) Vue 앱 실행

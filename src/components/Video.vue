@@ -51,6 +51,7 @@
 
 <script setup>
 import { ref, onMounted, nextTick } from "vue"
+import { buildSignalUrl } from "../utils/signalUrl"
 
 // --- WebRTC state ---
 let ws
@@ -125,7 +126,7 @@ function applyRemoteDraw(data) {
 
 // --- WebSocket / Signaling ---
 function joinRoom() {
-  ws = new WebSocket("ws://localhost:3001")
+  ws = new WebSocket(buildSignalUrl())
 
   ws.onopen = () => {
     ws.send(JSON.stringify({ type: "join-room", roomId: roomId.value, sender: clientId }))
